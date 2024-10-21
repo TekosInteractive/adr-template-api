@@ -1,2 +1,2 @@
-# symfony-template-api
+# adr-template-api
 This template 
