@@ -1,2 +1,2 @@
 # adr-template-api
-This template 
+This template will use to clone new project.

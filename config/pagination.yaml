@@ -1,0 +1,4 @@
+parameters:
+    default_page: 1
+    default_page_size: 20
+    always_paginate: true

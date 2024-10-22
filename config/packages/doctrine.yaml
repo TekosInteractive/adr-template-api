@@ -1,0 +1,55 @@
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+        types:
+          datetime_immutable: \Carbon\Doctrine\DateTimeImmutableType
+          datetime: \Carbon\Doctrine\DateTimeType
+          uuid: TekosInteractive\SaaCoreBundle\Infra\ValueObjects\Uuid\UuidType
+    orm:
+        dql:
+            datetime_functions:
+                DATE: DoctrineExtensions\Query\Mysql\Date
+                DAY: DoctrineExtensions\Query\Mysql\Day
+                MONTH: DoctrineExtensions\Query\Mysql\Month
+                YEAR: DoctrineExtensions\Query\Mysql\Year
+        auto_generate_proxy_classes: true
+        enable_lazy_ghost_objects: true
+        naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
+        auto_mapping: true
+        mappings:
+            App:
+                is_bundle: false
+                type: 'yml'
+                dir: '%kernel.project_dir%/config/doctrine'
+                prefix: 'App\Domain\Entities'
+                alias: App
+            TekosInteractiveSaaUserBundle:
+                is_bundle: true
+                type: 'yml'
+                dir: 'config/doctrine'
+                prefix: 'TekosInteractive\SaaUserBundle\Domain\Entities'
+                alias: TekosInteractiveSaaUserBundle
+when@test:
+    doctrine:
+        dbal:
+            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+
+when@prod:
+    doctrine:
+        orm:
+            auto_generate_proxy_classes: false
+            proxy_dir: '%kernel.build_dir%/doctrine/orm/Proxies'
+            query_cache_driver:
+                type: pool
+                pool: doctrine.system_cache_pool
+            result_cache_driver:
+                type: pool
+                pool: doctrine.result_cache_pool
+
+    framework:
+        cache:
+            pools:
+                doctrine.result_cache_pool:
+                    adapter: cache.app
+                doctrine.system_cache_pool:
+                    adapter: cache.system

@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # PHP Service
+   {{project_name}}:
+    build:
+      context: .
+      dockerfile: ./infra/php/Dockerfile
+      args:
+        XDEBUG_IDKEY: ${XDEBUG_IDKEY}
+        XDEBUG_PORT: ${XDEBUG_PORT}
+        XDEBUG_HOST: ${XDEBUG_HOST}
+        XDEBUG_TRIGGERVALUE: ${XDEBUG_IDKEY}
+        MAIL_PORT: ${MAIL_PORT}
+        MAIL_HOST: ${MAIL_HOST}
+        PHP_PORT: ${PHP_PORT}
+        APP_PATH: ${APP_PATH}
+    image:  {{project_name}}
+    container_name:  {{project_name}}
+    restart: unless-stopped
+    tty: true
+    extra_hosts:
+      - "host.docker.interntestal:host-gateway"
+    environment:
+      SERVICE_NAME:  {{project_name}}
+      SERVICE_TAGS: dev
+      XDEBUG_MODE: develop,debug
+      XDEBUG_CONFIG: client_host=host.docker.internal start_with_request=yes
+    volumes:
+      - ./:${APP_PATH}
+      - ./infra/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      -  {{project_name}}-network
+
+  # Nginx Service
+   {{project_name}}-nginx:
+    image: nginx:alpine
+    container_name:  {{project_name}}-nginx
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+      - 443:443
+    volumes:
+      - ./infra/nginx/templates:/etc/nginx/templates
+      - ./:${APP_PATH}
+      - ./infra/nginx/conf.d/:/etc/nginx/conf.d/
+    environment:
+      - NGINX_API_HOST=${APP_DOMAIN}
+      - NGINX_API_PORT=${APP_PORT}
+      - NGINX_API_ROOT_FOLDER=${APP_PATH}/public
+      - PHP_PORT=${PHP_PORT}
+      - PHP_SERVICE= {{project_name}}
+      - NGINX_FRONT_HOST=${FRONT_DOMAIN}
+    networks:
+      -  {{project_name}}-network
+
+  # MySQL Service
+   {{database_host}}:
+    image: mariadb:10.6.10
+    container_name:  {{database_host}}
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    command: --port ${DB_PORT}
+    environment:
+      - MARIADB_DATABASE=${DB_DATABASE}
+      - MARIADB_USER=${DB_USERNAME}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${DB_PASSWORD}
+    volumes:
+      -  {{project_name}}-dbdata:/var/lib/mysql/
+      - ./infra/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      -  {{project_name}}-network
+
+# Docker Networks
+networks:
+   {{project_name}}-network:
+    driver: bridge
+    name:  {{project_name}}-network
+
+# Volumes
+volumes:
+   {{project_name}}-dbdata:
+    driver: local
+    #name:  {{project_name}}-dbdata
