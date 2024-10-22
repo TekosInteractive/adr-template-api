@@ -1,0 +1,18 @@
+security:
+    password_hashers:
+        TekosInteractive\SaaUserBundle\Domain\Entities\UserIdentity: 'auto'
+    # https://symfony.com/doc/current/security/authenticator_manager.html
+    enable_authenticator_manager: true
+    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
+    # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+        main:
+            pattern: ^/
+
+    # Easy way to control access for large sections of your site
+    # Note: Only the *first* access control that matches will be used
+    access_control:
+        - { path: ^/api, roles: PUBLIC_ACCESS }

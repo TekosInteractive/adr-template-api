@@ -1,0 +1,43 @@
+#
+common:
+  created: Créé avec succès !
+  updated: Mis à jour avec succés !
+  deleted: Supprimé avec succès !
+#
+errors:
+  unsupported_content_type: Type de contenu non pris en charge !
+#
+auth:
+  registered: Enregistré avec succès !
+  password_updated: Votre mot de passe a été mis à jour !
+  email_already: Cet email est déjà utilisé.
+  admin_existed: L'administrateur existe déjà.
+  password_sent: Le mot de passe a été envoyé à votre adresse e-mail.
+  access_denied: Accès refusé.
+  link_expired: Le lien est expiré.
+  unauthorized: Vous devez être authentifié...
+#
+users:
+  invalid_credentials: Les informations d'identification invalides.
+  password_required: Mot de passe requis.
+  password_should_character: Le mot de passe doit comporter au moins {{ limit }} caractères.
+  user_identifier: Veuillez fournir l'identifiant de l'utilisateur.
+  registration_no_roles: Il n'y a pas de rôle pour cette inscription.
+  page_size: Veuillez indiquer une taille de page.
+  page_size_required: La taille de la page doit être en chiffres et supérieure à 0.
+  expected_page: Veuillez fournir la page attendue.
+  unique_name_existed: Le nom unique existe déjà.
+  not_found: Aucun utilisateur trouvé.
+  admin_created: Premier administrateur créé !
+  reset_password_link_invalid: Le lien de réinitialisation du mot de passe n'est pas valide. Veuillez réessayer de réinitialiser votre mot de passe.
+  already_existed: Cet utilisateur existe déjà.
+#
+roles:
+  unique_name: Veuillez fournir un nom unique.
+  display_name_required: Le nom d'affichage est requis.
+  no_role: N'a trouvé aucun rôle.
+  already_existed: Ce rôle existe déjà.
+#
+permissions:
+  already_existed: Le nom de l'autorisation est dupliqué.
+  permission_not_found: Trouvé aucune autorisation.

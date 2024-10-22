@@ -1,0 +1,221 @@
+.PHONY: all
+
+MAKEFLAGS += --no-print-directory
+USER_ID=`id -u ${USER}`
+GROUP_ID=`id -g ${USER}`
+API_PATH=/var/www/api
+WAIT=10
+
+define get_user
+	USER_NUM=$(shell echo $(USER_ID))
+	$(1) := $$(USER_NUM)
+endef
+
+define get_group
+	GROUP_NUM=$(shell echo $(GROUP_ID))
+	$(1) := $$(GROUP_NUM)
+endef
+
+define run_api_cmd
+	docker-compose exec {{project_name}} $(1)
+endef
+
+define run_api_cmd_as_root
+	@docker-compose exec --user root {{project_name}} $(1)
+endef
+
+define run_docker_compose_cmd
+	docker-compose $(1)
+endef
+
+install: api_stop
+	@docker system prune --volumes --force
+	@${MAKE} api_rebuild
+	@${MAKE} composer_install
+	@${MAKE} db_init
+	@${MAKE} cache_clear_all
+	@echo
+	@echo
+	@echo "*************************************"
+	@echo "** The backend is ready !          **"
+	@echo "** API url is {{project_name}}.local **"
+	@echo "** PORT 8080                       **"
+	@echo "** Adjust vars in .env             **"
+	@echo "*************************************"
+
+sf_cmd: api_start
+	$(call run_api_cmd,php bin/console $(cmd))
+
+sf_cmd_raw: api_start
+	$(call run_api_cmd,/bin/sh -c '$(cmd)')
+
+sf_create_app:
+	docker-compose run \
+	--user 1000:1000 \
+	--entrypoint symfony \
+	{{project_name}} \
+	new "${API_PATH}" --version="6.2.*"
+
+recipes: api_start
+	$(call run_api_cmd,composer recipes --working-dir ${API_PATH})
+
+recipes_update: api_start
+	$(call run_api_cmd,composer recipes:update --working-dir ${API_PATH})
+
+composer_install: api_start
+	$(call run_api_cmd,composer install --working-dir ${API_PATH})
+
+composer_update: api_start
+	$(call run_api_cmd,composer update --with-all-dependencies --working-dir ${API_PATH})
+
+composer_require: api_start
+	$(call run_api_cmd,composer require "$(package)" --with-all-dependencies --working-dir ${API_PATH})
+
+composer_require_dev: api_start
+	$(call run_api_cmd,composer require "$(package)" --dev --with-all-dependencies --working-dir ${API_PATH})
+
+env_init:
+	ln -sfn ${PWD}/{{project_name}}/.env .env
+
+direction?="--up"
+migration_execute: start_db
+	@${MAKE} sf_cmd cmd="doctrine:migrations:execute --version $(version) $(direction)"
+
+migrate_get_latest:
+	@${MAKE} sf_cmd cmd="doctrine:migrations:latest"
+
+migration_generate:
+	@${MAKE} sf_cmd cmd="doctrine:migrations:generate"
+
+migration_diff:
+	@${MAKE} sf_cmd cmd="doctrine:migrations:diff"
+
+migration_status:
+	@${MAKE} sf_cmd cmd="doctrine:migrations:status"
+
+migration_cmd:
+	@${MAKE} sf_cmd cmd="doctrine:migrations:$(cmd)"
+
+backend_reset: db_init
+	@${MAKE} cache_clear_all
+
+db_init:
+	@${MAKE} sf_cmd_raw cmd="php bin/console doctrine:database:drop --if-exists --force \
+	&& php bin/console doctrine:cache:clear-metadata \
+	&& php bin/console doctrine:database:create \
+	&& php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration \
+	&& php bin/console doctrine:fixtures:load --append"
+
+db_start:
+	$(call run_docker_compose_cmd,up -d {{project_name}})
+
+db_stop:
+	$(call run_docker_compose_cmd,stop template-api-db)
+
+db_reset: api_start
+	@${MAKE} sf_cmd cmd="doctrine:migrations:reset"
+
+db_refresh: api_start
+	@${MAKE} sf_cmd cmd="doctrine:migrations:refresh"
+
+db_rollback: api_start
+	@${MAKE} sf_cmd cmd="doctrine:migrations:rollback"
+
+db_seed:
+	@${MAKE} sf_cmd cmd="doctrine:fixtures:load --append"
+
+db_drop:
+	@${MAKE} sf_cmd cmd="doctrine:database:drop --if-exists --force"
+
+db_create:
+	@${MAKE} sf_cmd cmd="doctrine:database:create"
+
+migration:
+	@${MAKE} sf_cmd cmd="make:migration"
+
+migrate:
+	@${MAKE} sf_cmd cmd="doctrine:migrations:migrate --no-interaction"
+
+cache_warmup:
+	@${MAKE} sf_cmd cmd="cache:warmup"
+
+cache_clear:
+	@${MAKE} sf_cmd cmd="cache:clear"
+
+cache_clear_all:
+	@${MAKE} sf_cmd_raw cmd="php bin/console cache:clear \
+	&& php bin/console doctrine:cache:clear-metadata \
+	&& php bin/console doctrine:cache:clear-query \
+	&& php bin/console doctrine:cache:clear-result \
+	&& php bin/console cache:warmup"
+
+cache_clear_doctrine:
+	@${MAKE} sf_cmd_raw cmd="php bin/console doctrine:cache:clear-metadata \
+	&& php bin/console doctrine:cache:clear-query \
+	&& php bin/console doctrine:cache:clear-result"
+
+api_rebuild: api_stop
+	$(call run_docker_compose_cmd,up --build -d --remove-orphans)
+
+api_start:
+	$(call run_docker_compose_cmd,up -d)
+
+api_stop:
+	$(call run_docker_compose_cmd,down)
+
+api_restart: api_stop
+	@${MAKE} api_start
+
+run_php_cmd:
+	$(call run_docker_compose_cmd,exec  template-api php -r "$(cmd)")
+
+workflow_dump:
+	@${MAKE} sf_cmd cmd="workflow:dump $(workflow) --format=jpg"
+
+cronjobs:
+	# * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
+	@${MAKE} sf_cmd cmd="schedule:run"
+
+cronjobs_dev:
+	@${MAKE} sf_cmd cmd="schedule:work"
+
+EMAIL ?= $(shell bash -c 'read -p "Email: " email; echo $$email')
+USERNAME ?= $(shell bash -c 'read -p "Username: " email; echo $$username')
+GPG_KEY_ID ?= $(shell bash -c 'read -p "KeyID: " keyid; echo $$keyid')
+
+export_gpg:
+	@gpg --export -a > public.key
+	@gpg --export-secret-key -a > private.key
+
+install_pre_commit:
+	$(call run_api_cmd_as_root, pip3 install pre-commit \
+		&& pre-commit install)
+
+import_gpg_public_key:
+	$(call run_api_cmd_as_root, gpg --import public.key)
+
+import_gpg_private_key:
+	$(call run_api_cmd_as_root, gpg --import private.key)
+
+git_config:
+	$(call run_api_cmd_as_root, git config --global --add safe.directory /var/www/api)
+
+git_config_username:
+	$(call run_api_cmd_as_root, git status \
+		&& git config user.name $(USERNAME) \
+		&& git config user.email $(EMAIL) \
+		&& git config user.signingkey $(GPG_KEY_ID) \
+		&& git config commit.gpgsign true)
+
+delete_gpg:
+	@rm public.key
+	@rm private.key
+
+setup_gpg:
+	@${MAKE} export_gpg
+	@${MAKE} install_pre_commit
+	@${MAKE} git_config
+	@${MAKE} git_config_username
+	@${MAKE} import_gpg_public_key
+	@${MAKE} import_gpg_private_key
+	@${MAKE} delete_gpg

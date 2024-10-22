@@ -1,0 +1,77 @@
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+  app.front.host: '%env(FRONT_DOMAIN)%'
+  app.front.port: '%env(FRONT_PORT)%'
+  app.name: '%env(APP_NAME)%'
+  app.avatar_upload_folder: 'avatars'
+  app.supported.locales:
+    - en_US
+    - fr_FR
+  timezone: '%env(APP_TIMEZONE)%'
+
+imports:
+  - { resource: 'pagination.yaml' }
+
+services:
+  _defaults:
+    autowire: true      # Automatically injects dependencies in your services.
+    autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+    public: true
+  _instanceof:
+    TekosInteractive\SaaCoreBundle\Infra\DtoFactories\InputFactories\InputFactoryInterface:
+      tags:
+        - { name: app.input_factory }
+    TekosInteractive\SaaCoreBundle\Infra\DtoFactories\OutputFactories\OutputFactoryInterface:
+      tags:
+        - { name: app.output_factory }
+    TekosInteractive\SaaCoreBundle\Domain\OutputFactories\OutputFactoryInterface:
+      tags:
+        - { name: domain.output_factory }
+
+  # makes classes in src/ available to be used as services
+  # this creates a service per class whose id is the fully-qualified class name
+  App\:
+    resource: '../src/'
+    exclude:
+      - '../src/Kernel.php'
+      - '../src/Tests/'
+      - '../src/Action/*/Dtos/'
+      - '../src/Domain/Entities/'
+      - '../src/Domain/Dtos/'
+      - '../src/Domain/Structures/'
+      - '../src/Infra/Exceptions/'
+      - '../src/Infra/EventDispatcher/'
+      - '../src/Infra/Events/'
+      - '../src/Infra/EventSubscribers/'
+
+  TekosInteractive\SaaCoreBundle\Infra\Responders\ResponderFactory:
+      tags:
+        - { name: kernel.event_listener, event: kernel.view }
+  get_set_method_normalizer:
+    class: Symfony\Component\Serializer\Normalizer\GetSetMethodNormalizer
+    tags: [ serializer.normalizer ]
+
+  doctrine.custom_uuid_generator:
+    class: TekosInteractive\SaaCoreBundle\Infra\ValueObjects\Uuid\UuidGenerator
+    tags: [ doctrine.id_generator ]
+
+  TekosInteractive\SaaCoreBundle\Infra\DtoFactories\InputFactories\ServiceLocatorInputFactoryProvider:
+    class: TekosInteractive\SaaCoreBundle\Infra\DtoFactories\InputFactories\ServiceLocatorInputFactoryProvider
+    arguments: [ !tagged_locator { tag: app.input_factory, index_by: 'key', default_index_method: 'supportedInput' } ]
+    lazy: true
+
+  TekosInteractive\SaaCoreBundle\Infra\DtoFactories\OutputFactories\ServiceLocatorOutputFactoryProvider:
+    class: TekosInteractive\SaaCoreBundle\Infra\DtoFactories\OutputFactories\ServiceLocatorOutputFactoryProvider
+    arguments: [ !tagged_locator { tag: app.output_factory, index_by: 'key', default_index_method: 'supportedOutput' } ]
+    lazy: true
+
+  TekosInteractive\SaaCoreBundle\Domain\OutputFactories\ServiceLocatorOutputFactoryProvider:
+    class: TekosInteractive\SaaCoreBundle\Domain\OutputFactories\ServiceLocatorOutputFactoryProvider
+    arguments: [
+      !tagged_locator { tag: domain.output_factory, index_by: 'key', default_index_method: 'supportedOutput' }
+    ]
+    lazy: true

@@ -1,0 +1,43 @@
+log_format post_logs '[$time_local] "$request" $status '
+                     '$body_bytes_sent "$http_referer" '
+                     '"$http_user_agent" [$request_body]';
+
+server {
+    index index.html;
+    listen ${NGINX_FRONT_PORT};
+    server_name ${NGINX_FRONT_HOST};
+
+    error_log  /var/log/nginx/error.log post_logs;
+    access_log /var/log/nginx/access.log post_logs;
+
+    root ${NGINX_FRONT_ROOT_FOLDER};
+
+    large_client_header_buffers 4 32k;
+
+    location ~ \.html$ {
+        try_files $uri $uri/ /index.html =404;
+
+        add_header Cache-Control "private, no-cache, no-store, must-revalidate";
+        add_header Expires "Sat, 01 Jan 2000 00:00:00 GMT";
+        add_header Pragma no-cache;
+    }
+
+    location ~ \/api {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        #proxy_set_header content-type "application/json";
+        proxy_pass_header Content-Type;
+        client_max_body_size 10M;
+        proxy_buffering off;
+        proxy_pass http://${NGINX_API_HOST}:${NGINX_API_PORT};
+    }
+
+    location / {
+#       include /etc/nginx/cors.conf;
+        # First attempt to serve request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ /index.html =404;
+    }
+}

@@ -1,0 +1,16 @@
+doctrine_migrations:
+  migrations_paths:
+    # namespace is arbitrary but should be different from App\Migrations
+    # as migrations classes should NOT be autoloaded
+    'UserBundleMigrations': '%kernel.project_dir%/vendor/tekos-interactive/saa-user-bundle/config/migrations'
+    'DoctrineMigrations': '%kernel.project_dir%/migrations'
+
+
+  # Whether or not to enable the profiler collector to calculate and visualize migration status. This adds some queries overhead.
+  enable_profiler: false
+
+  # Connection to use for the migrations
+  connection: default
+
+  # Run all migrations in a transaction.
+  all_or_nothing: false

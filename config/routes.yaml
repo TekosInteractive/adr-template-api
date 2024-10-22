@@ -1,0 +1,2 @@
+user_vendor_routes:
+  resource: '../vendor/tekos-interactive/saa-user-bundle/config/routes/routes.yaml'
